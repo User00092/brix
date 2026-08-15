@@ -1,16 +1,16 @@
 [project]
-name = "trix-orchestrator"
+name = "brix"
 version = "0.1.0"
-description = "Open-source Codex agent orchestration for software development"
+description = "Open-source Codex-powered browser automation with live human takeover"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12"
-authors = [{ name = "Trix contributors" }]
-keywords = ["software-development", "orchestration", "codex", "agent", "ai"]
+authors = [{ name = "Brix contributors" }]
+keywords = ["browser-automation", "playwright", "codex", "agent", "ai"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
-  "Topic :: Software Development",
+  "Topic :: Internet :: WWW/HTTP :: Browsers",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
@@ -20,11 +20,12 @@ classifiers = [
 dependencies = [
   "fastapi>=0.115,<1",
   "pydantic>=2.11,<3",
+  "playwright>=1.52,<2",
   "uvicorn[standard]>=0.34,<1",
 ]
 
 [project.scripts]
-trix = "trix.cli:main"
+brix = "brix.cli:main"
 
 [dependency-groups]
 dev = [
@@ -40,11 +41,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["trix"]
+packages = ["brix"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests/trix"]
+testpaths = ["tests/brix"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -66,7 +67,7 @@ ignore = ["S101", "S110", "COM812", "N818"]
 "tests/**" = ["S101", "S108"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["trix"]
+known-first-party = ["brix"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "strix"]

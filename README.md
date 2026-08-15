@@ -1,64 +1,61 @@
-# Trix
+# Brix
 
-Trix is an open-source AI development orchestration tool that coordinates Codex agents as a
-structured software-engineering team. Codex remains responsible for repository work, commands,
-reasoning, implementation, and testing. Trix supplies the hierarchy, policy, persistent state,
-verification gates, and live interface around that work.
+Brix is a Strix-inspired, open-source AI browser automation platform. It uses Codex agents and a
+deterministic Playwright browser layer to navigate websites, operate web applications, verify
+results, support live human takeover, and return structured results to users or calling agents.
 
-## What works in the MVP
+## Current capabilities
 
-- A root Manager and independently streamed worker agents, each backed by a Codex App Server thread.
-- A zero-indexed, three-level hierarchy with a maximum of two active direct children.
-- A separate global concurrency limit.
-- Persistent SQLite sessions, agents, structured reports, and normalized activity events.
-- Explicit separation between `report submitted` and `work accepted`.
-- Report rejection with feedback delivered back to the worker's Codex thread.
-- Native `trix.*` dynamic tools that let Managers and workers delegate from inside Codex turns.
-- A strict read-only Manager that delegates all execution and only directs, observes, and verifies.
-- REST controls and a WebSocket-powered agent tree, activity feed, and detail view.
-- A required repository path that becomes the canonical per-session filesystem authority.
+- Browser tasks backed by Codex App Server threads.
+- Deterministic Chromium control through Playwright, including semantic snapshots and stable element
+  references.
+- Persistent browser profiles and SQLite task state.
+- REST controls and a WebSocket event stream.
+- Permission checks, approval states, screenshots, and structured task results.
+- Pause/resume and agent-to-user browser control handoff primitives.
 
-See [strix-to-trix.md](strix-to-trix.md) for the product direction and later milestones.
+See [trix-to-brix-plan.md](trix-to-brix-plan.md) for the product direction and later milestones.
 
 ## Requirements
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - A working, authenticated `codex` CLI with App Server support
+- Chromium installed for Playwright
 
 ## Run locally
 
 ```bash
 uv sync
-uv run trix --reload
+uv run playwright install chromium
+uv run brix --reload
 ```
 
-Open <http://127.0.0.1:8787>, provide an existing repository directory, create a session, and start
-its Manager. Trix canonicalizes the required path and automatically grants that session access to it.
+Open <http://127.0.0.1:8787> to create and monitor browser tasks. The API schema is available at
+<http://127.0.0.1:8787/docs>.
 
 Configuration:
 
 ```bash
-export TRIX_DATABASE=/absolute/path/to/trix.db
-export TRIX_CODEX_EXECUTABLE=codex
+export BRIX_DATABASE=/absolute/path/to/brix.db
+export BRIX_CODEX_EXECUTABLE=codex
+export BRIX_DATA_DIR=/absolute/path/to/brix-data
 ```
 
-The OpenAPI document is available at `/docs`. Important endpoints include:
+Important endpoints include:
 
 ```text
-POST /api/sessions
-POST /api/sessions/{id}/start
-POST /api/agents
-POST /api/agents/{id}/instructions
-POST /api/agents/{id}/reports
-POST /api/reports/{id}/review
-WS   /api/sessions/{id}/events
+POST /api/v1/tasks
+GET  /api/v1/tasks/{id}
+POST /api/v1/tasks/{id}/cancel
+POST /api/v1/browser-sessions/{id}/take-control
+POST /api/v1/browser-sessions/{id}/return-to-agent
+WS   /api/v1/tasks/{id}/events
 ```
 
-Every Codex thread receives depth-appropriate Trix tools. Managers and depth-1 workers can spawn up
-to two direct children, steer them, inspect state and changes, and accept or reject reports. Leaf
-workers cannot delegate. The Manager receives a read-only repository sandbox and can complete the
-session only after every delegated agent has reached accepted completion.
+Codex reasons about a task while Brix owns browser execution, session state, permission enforcement,
+and verification. When CAPTCHA, MFA, or another human-verification step appears, automation pauses
+so a user can take control of the same browser session and then return it to the agent.
 
 ## Development
 
@@ -68,21 +65,19 @@ make test
 make check-all
 ```
 
-The old `strix/` source is retained temporarily as migration reference but is no longer packaged or
-exposed as a console command. New implementation belongs in `trix/`.
+The historical `trix/` and `strix/` sources are retained as migration reference. They are not part
+of the Brix wheel and do not expose console commands; new product implementation belongs in `brix/`.
 
 ## Architecture
 
 ```text
-Browser ── REST/WebSocket ── FastAPI
-                              │
-                     Trix Orchestrator
-                       │            │
-                    SQLite      Codex App Server
-                                      │
-                         Manager/worker threads
+Caller -> Brix REST/WebSocket API -> Task Manager -> Codex
+                                         |
+                                         +-> Playwright -> Chromium
+                                         +-> SQLite / artifacts
+                                         +-> live human control
 ```
 
-Trix is licensed under Apache-2.0. It began as a fork of
-[usestrix/strix](https://github.com/usestrix/strix); preserved upstream code retains its original
-copyright and license notices.
+Brix is licensed under Apache-2.0. Its orchestration lineage runs through Trix, which began as a fork
+of [usestrix/strix](https://github.com/usestrix/strix); preserved historical code retains its
+original copyright and license notices.
