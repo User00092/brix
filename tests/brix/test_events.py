@@ -1,4 +1,4 @@
-from trix.events import is_stream_delta, normalize_codex_event
+﻿from brix.events import is_stream_delta, normalize_codex_event
 
 
 def test_command_event_is_semantic() -> None:
@@ -12,26 +12,6 @@ def test_command_event_is_semantic() -> None:
     )
     assert event.event_type == "command_started"
     assert "pytest -q" in event.message
-
-
-def test_failed_command_event_includes_exit_code() -> None:
-    event = normalize_codex_event(
-        "session",
-        "agent",
-        {
-            "method": "item/completed",
-            "params": {
-                "item": {
-                    "type": "commandExecution",
-                    "command": "rg --files",
-                    "exitCode": 1,
-                    "status": "failed",
-                }
-            },
-        },
-    )
-    assert event.event_type == "command_failed"
-    assert "exit code 1" in event.message
 
 
 def test_raw_event_is_preserved() -> None:

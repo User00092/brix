@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 from pathlib import Path
@@ -6,11 +6,11 @@ from typing import Any
 
 import pytest
 
-from trix.codex import CodexAppServer, CodexError
-from trix.models import AgentStatus, SessionStatus
-from trix.orchestrator import Orchestrator
-from trix.store import Store
-from trix.tools import tools_for
+from brix.codex import CodexAppServer, CodexError
+from brix.models import AgentStatus, SessionStatus
+from brix.orchestrator import Orchestrator
+from brix.store import Store
+from brix.tools import tools_for
 
 
 class FakeCodex:
@@ -54,9 +54,6 @@ class FakeCodex:
         self.turns.append((thread_id, prompt))
         return f"turn-{len(self.turns)}"
 
-    async def resume_thread(self, thread_id: str) -> str:
-        return thread_id
-
     async def interrupt(self, thread_id: str, turn_id: str) -> None:
         pass
 
@@ -75,7 +72,7 @@ async def test_codex_request_times_out_and_cleans_pending_request() -> None:
 
 
 @pytest.mark.asyncio
-async def test_idle_turn_replaces_thread_without_failing_agent(tmp_path: Path) -> None:
+async def test_idle_turn_fails_agent_and_session(tmp_path: Path) -> None:
     codex = FakeCodex()
     store = Store(tmp_path / "idle.db")
     orchestrator = Orchestrator(store, codex)  # type: ignore[arg-type]
@@ -87,15 +84,14 @@ async def test_idle_turn_replaces_thread_without_failing_agent(tmp_path: Path) -
 
     agent = store.get_agent(session.root_agent_id or "")
     assert agent is not None
-    assert agent.status == AgentStatus.WORKING
-    assert agent.current_turn_id is not None
-    assert agent.codex_thread_id == "thread-1"
-    assert store.get_session(session.id).status == SessionStatus.RUNNING  # type: ignore[union-attr]
-    assert store.list_events(session.id)[-1].event_type == "agent_thread_recovered"
+    assert agent.status == AgentStatus.FAILED
+    assert agent.current_turn_id is None
+    assert store.get_session(session.id).status == SessionStatus.FAILED  # type: ignore[union-attr]
+    assert store.list_events(session.id)[-1].event_type == "agent_failed"
 
 
 @pytest.mark.asyncio
-async def test_restart_resumes_orphaned_sessions(tmp_path: Path) -> None:
+async def test_restart_reconciles_orphaned_sessions(tmp_path: Path) -> None:
     store = Store(tmp_path / "restart.db")
     first = Orchestrator(store, FakeCodex())  # type: ignore[arg-type]
     session = await first.create_session("Build", "Implement feature", str(tmp_path))
@@ -106,11 +102,9 @@ async def test_restart_resumes_orphaned_sessions(tmp_path: Path) -> None:
 
     agent = store.get_agent(session.root_agent_id or "")
     assert agent is not None
-    assert agent.status == AgentStatus.WORKING
-    assert agent.codex_thread_id == "thread-0"
-    assert agent.current_turn_id is not None
-    assert store.get_session(session.id).status == SessionStatus.RUNNING  # type: ignore[union-attr]
-    assert store.list_events(session.id)[-1].event_type == "session_recovered"
+    assert agent.status == AgentStatus.FAILED
+    assert store.get_session(session.id).status == SessionStatus.FAILED  # type: ignore[union-attr]
+    assert store.list_events(session.id)[-1].event_type == "session_failed"
 
 
 def tool_call(thread_id: str, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -121,7 +115,7 @@ def tool_call(thread_id: str, tool: str, arguments: dict[str, Any]) -> dict[str,
             "threadId": thread_id,
             "turnId": "turn",
             "callId": "call",
-            "namespace": "trix",
+            "namespace": "brix",
             "tool": tool,
             "arguments": arguments,
         },
@@ -131,7 +125,7 @@ def tool_call(thread_id: str, tool: str, arguments: dict[str, Any]) -> dict[str,
 @pytest.mark.asyncio
 async def test_manager_delegates_and_reviews_worker(tmp_path: Path) -> None:
     codex = FakeCodex()
-    store = Store(tmp_path / "trix.db")
+    store = Store(tmp_path / "brix.db")
     orchestrator = Orchestrator(store, codex)  # type: ignore[arg-type]
     session = await orchestrator.create_session("Build", "Implement feature", str(tmp_path))
     await orchestrator.start_session(session.id)
@@ -201,7 +195,7 @@ async def test_manager_delegates_and_reviews_worker(tmp_path: Path) -> None:
 
 
 def test_leaf_does_not_receive_delegation_tool() -> None:
-    from trix.models import Agent
+    from brix.models import Agent
 
     leaf = Agent(session_id="s", parent_id="p", depth=2, name="Leaf", role="Worker", task="Work")
     names = {tool["name"] for tool in tools_for(leaf)[0]["tools"]}

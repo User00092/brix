@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from trix.models import Event
+from brix.models import Event
 
 EventSink = Callable[[Event], Awaitable[None]]
 
@@ -24,21 +24,9 @@ def normalize_codex_event(session_id: str, agent_id: str, payload: dict[str, Any
     message = method.replace("/", " ").replace("_", " ").capitalize()
     if "command" in item_type:
         command = item.get("command", item.get("cmd", "command"))
-        if method.endswith("started"):
-            message = f"Running {command}"
-            event_type = "command_started"
-        else:
-            exit_code = item.get("exitCode", item.get("exit_code"))
-            failed = exit_code not in {None, 0} or str(item.get("status", "")).lower() in {
-                "failed",
-                "error",
-            }
-            message = (
-                f"Command failed with exit code {exit_code}: {command}"
-                if failed
-                else f"Finished {command}"
-            )
-            event_type = "command_failed" if failed else "command_completed"
+        phase = "Running" if method.endswith("started") else "Finished"
+        message = f"{phase} {command}"
+        event_type = "command_started" if phase == "Running" else "command_completed"
     elif "filechange" in item_type or "file_change" in item_type:
         message = "Modifying repository files"
         event_type = "file_changed"
