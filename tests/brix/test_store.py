@@ -1,6 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from brix.models import Agent, AgentReport, Event, BrixSession
+from brix.models import Agent, AgentReport, BrixSession, Event
 from brix.store import Store
 
 

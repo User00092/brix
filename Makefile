@@ -15,7 +15,7 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  pre-commit    - Run pre-commit hooks on all files"
-	@echo "  test          - Run the Trix test suite"
+	@echo "  test          - Run the Brix test suite"
 	@echo "  clean         - Clean up cache files and artifacts"
 
 install:
@@ -31,22 +31,22 @@ setup-dev: dev-install
 
 format:
 	@echo "🎨 Formatting code with ruff..."
-	uv run ruff format .
+	uv run ruff format brix tests/brix
 	@echo "✅ Code formatting complete!"
 
 lint:
 	@echo "🔍 Linting code with ruff..."
-	uv run ruff check . --fix
+	uv run ruff check brix tests/brix --fix
 	@echo "✅ Linting complete!"
 
 type-check:
 	@echo "🔍 Type checking with mypy..."
-	uv run mypy trix/
+	uv run mypy brix/
 	@echo "✅ Type checking complete!"
 
 security:
 	@echo "🔒 Running security checks with bandit..."
-	uv run bandit -r trix/ -c pyproject.toml
+	uv run bandit -r brix/ -c pyproject.toml
 	@echo "✅ Security checks complete!"
 
 check-all: format lint type-check security
@@ -68,4 +68,4 @@ clean:
 dev: format lint type-check
 	@echo "✅ Development cycle complete!"
 test:
-	uv run pytest tests/trix -q
+	uv run pytest tests/brix -q

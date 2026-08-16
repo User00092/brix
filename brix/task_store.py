@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from brix.domain import Approval, BrowserSession, BrowserTask, TaskEvent
 
@@ -29,11 +30,24 @@ class TaskStore:
         with self.connection() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY);
-                CREATE TABLE IF NOT EXISTS browser_tasks (id TEXT PRIMARY KEY, status TEXT NOT NULL, created_at TEXT NOT NULL, data TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS browser_sessions (id TEXT PRIMARY KEY, task_id TEXT NOT NULL UNIQUE, state TEXT NOT NULL, data TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS task_events (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, type TEXT NOT NULL, created_at TEXT NOT NULL, data TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS approvals (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL);
-                CREATE INDEX IF NOT EXISTS idx_browser_tasks_status ON browser_tasks(status, created_at);
+                CREATE TABLE IF NOT EXISTS browser_tasks (
+                    id TEXT PRIMARY KEY, status TEXT NOT NULL,
+                    created_at TEXT NOT NULL, data TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS browser_sessions (
+                    id TEXT PRIMARY KEY, task_id TEXT NOT NULL UNIQUE,
+                    state TEXT NOT NULL, data TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL,
+                    type TEXT NOT NULL, created_at TEXT NOT NULL, data TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS approvals (
+                    id TEXT PRIMARY KEY, task_id TEXT NOT NULL,
+                    status TEXT NOT NULL, data TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_browser_tasks_status
+                    ON browser_tasks(status, created_at);
                 CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id);
                 INSERT OR IGNORE INTO schema_migrations(version) VALUES (1);
             """)
@@ -44,7 +58,10 @@ class TaskStore:
 
     def save_task(self, task: BrowserTask) -> BrowserTask:
         with self.connection() as db:
-            db.execute("INSERT OR REPLACE INTO browser_tasks VALUES (?, ?, ?, ?)", (task.id, task.status, task.created_at.isoformat(), self._json(task)))
+            db.execute(
+                "INSERT OR REPLACE INTO browser_tasks VALUES (?, ?, ?, ?)",
+                (task.id, task.status, task.created_at.isoformat(), self._json(task)),
+            )
         return task
 
     def get_task(self, task_id: str) -> BrowserTask | None:
@@ -59,12 +76,17 @@ class TaskStore:
 
     def save_session(self, session: BrowserSession) -> BrowserSession:
         with self.connection() as db:
-            db.execute("INSERT OR REPLACE INTO browser_sessions VALUES (?, ?, ?, ?)", (session.id, session.task_id, session.state, self._json(session)))
+            db.execute(
+                "INSERT OR REPLACE INTO browser_sessions VALUES (?, ?, ?, ?)",
+                (session.id, session.task_id, session.state, self._json(session)),
+            )
         return session
 
     def get_session(self, session_id: str) -> BrowserSession | None:
         with self.connection() as db:
-            row = db.execute("SELECT data FROM browser_sessions WHERE id=?", (session_id,)).fetchone()
+            row = db.execute(
+                "SELECT data FROM browser_sessions WHERE id=?", (session_id,)
+            ).fetchone()
         return BrowserSession.model_validate_json(row["data"]) if row else None
 
     def list_sessions(self) -> list[BrowserSession]:
@@ -74,19 +96,28 @@ class TaskStore:
 
     def add_event(self, event: TaskEvent) -> TaskEvent:
         with self.connection() as db:
-            cursor = db.execute("INSERT INTO task_events(task_id,type,created_at,data) VALUES(?,?,?,?)", (event.task_id, event.type, event.created_at.isoformat(), self._json(event)))
+            cursor = db.execute(
+                "INSERT INTO task_events(task_id,type,created_at,data) VALUES(?,?,?,?)",
+                (event.task_id, event.type, event.created_at.isoformat(), self._json(event)),
+            )
             event.id = cursor.lastrowid
             db.execute("UPDATE task_events SET data=? WHERE id=?", (self._json(event), event.id))
         return event
 
     def events(self, task_id: str, after: int = 0) -> list[TaskEvent]:
         with self.connection() as db:
-            rows = db.execute("SELECT data FROM task_events WHERE task_id=? AND id>? ORDER BY id LIMIT 1000", (task_id, after)).fetchall()
+            rows = db.execute(
+                "SELECT data FROM task_events WHERE task_id=? AND id>? ORDER BY id LIMIT 1000",
+                (task_id, after),
+            ).fetchall()
         return [TaskEvent.model_validate_json(row["data"]) for row in rows]
 
     def save_approval(self, approval: Approval) -> Approval:
         with self.connection() as db:
-            db.execute("INSERT OR REPLACE INTO approvals VALUES(?,?,?,?)", (approval.id, approval.task_id, approval.status, self._json(approval)))
+            db.execute(
+                "INSERT OR REPLACE INTO approvals VALUES(?,?,?,?)",
+                (approval.id, approval.task_id, approval.status, self._json(approval)),
+            )
         return approval
 
     def get_approval(self, approval_id: str) -> Approval | None:
@@ -94,3 +125,27 @@ class TaskStore:
             row = db.execute("SELECT data FROM approvals WHERE id=?", (approval_id,)).fetchone()
         return Approval.model_validate_json(row["data"]) if row else None
 
+    def approvals(self, task_id: str) -> list[Approval]:
+        with self.connection() as db:
+            rows = db.execute(
+                "SELECT data FROM approvals WHERE task_id=? ORDER BY rowid", (task_id,)
+            ).fetchall()
+        return [Approval.model_validate_json(row["data"]) for row in rows]
+
+    def consume_approval(self, task_id: str, action: str) -> bool:
+        """Consume the oldest matching one-shot approval for an action."""
+        with self.connection() as db:
+            rows = db.execute(
+                "SELECT data FROM approvals WHERE task_id=? AND status='approved' ORDER BY rowid",
+                (task_id,),
+            ).fetchall()
+            for row in rows:
+                approval = Approval.model_validate_json(row["data"])
+                if approval.action == action:
+                    approval.status = "consumed"
+                    db.execute(
+                        "UPDATE approvals SET status=?, data=? WHERE id=?",
+                        (approval.status, self._json(approval), approval.id),
+                    )
+                    return True
+        return False

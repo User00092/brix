@@ -16,7 +16,13 @@ class RemoteAccessTokens:
 
     def create(self, session_id: str) -> tuple[str, int]:
         expires = int(time.time()) + self.ttl_seconds
-        payload = base64.urlsafe_b64encode(json.dumps({"sid": session_id, "exp": expires}, separators=(",", ":")).encode()).decode().rstrip("=")
+        payload = (
+            base64.urlsafe_b64encode(
+                json.dumps({"sid": session_id, "exp": expires}, separators=(",", ":")).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
         signature = hmac.new(self.secret, payload.encode(), hashlib.sha256).hexdigest()
         return f"{payload}.{signature}", expires
 
@@ -26,7 +32,10 @@ class RemoteAccessTokens:
             expected = hmac.new(self.secret, payload.encode(), hashlib.sha256).hexdigest()
             raw = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
             data = json.loads(raw)
-            return hmac.compare_digest(signature, expected) and data["sid"] == session_id and int(data["exp"]) >= int(time.time())
+            return (
+                hmac.compare_digest(signature, expected)
+                and data["sid"] == session_id
+                and int(data["exp"]) >= int(time.time())
+            )
         except (ValueError, KeyError, TypeError, json.JSONDecodeError):
             return False
-

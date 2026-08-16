@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def identifier(prefix: str) -> str:
@@ -107,6 +107,7 @@ class BrowserTask(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     result: TaskResult | None = None
+    verification_passed: bool = False
 
 
 class BrowserSession(BaseModel):
@@ -144,3 +145,6 @@ class Approval(BaseModel):
     status: str = "pending"
     created_at: datetime = Field(default_factory=utc_now)
 
+
+class ApprovalDecision(BaseModel):
+    approved: bool

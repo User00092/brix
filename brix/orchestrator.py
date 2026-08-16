@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import json
@@ -15,10 +15,10 @@ from brix.models import (
     Agent,
     AgentReport,
     AgentStatus,
+    BrixSession,
     Event,
     ReportStatus,
     SessionStatus,
-    BrixSession,
     utc_now,
 )
 from brix.policies import DelegationPolicy, PolicyViolation
@@ -570,9 +570,7 @@ class Orchestrator:
                     await self.codex.interrupt(agent.codex_thread_id, turn_id)
                 except Exception:
                     pass
-            message = (
-                f"Codex turn produced no activity for {self._turn_idle_timeout:g} seconds"
-            )
+            message = f"Codex turn produced no activity for {self._turn_idle_timeout:g} seconds"
             agent.status = AgentStatus.FAILED
             agent.error = message
             agent.completed_at = utc_now()

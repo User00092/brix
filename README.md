@@ -28,7 +28,7 @@ See [trix-to-brix-plan.md](trix-to-brix-plan.md) for the product direction and l
 ```bash
 uv sync
 uv run playwright install chromium
-uv run brix --reload
+uv run brix serve --reload
 ```
 
 Open <http://127.0.0.1:8787> to create and monitor browser tasks. The API schema is available at
@@ -40,6 +40,15 @@ Configuration:
 export BRIX_DATABASE=/absolute/path/to/brix.db
 export BRIX_CODEX_EXECUTABLE=codex
 export BRIX_DATA_DIR=/absolute/path/to/brix-data
+export BRIX_API_TOKEN=replace-with-a-long-random-token
+```
+
+Create and inspect tasks from another shell (the CLI reads `BRIX_API_URL` and
+`BRIX_API_TOKEN`):
+
+```bash
+uv run brix task "Open example.com and report the page title"
+uv run brix status tsk_01K2XYZ
 ```
 
 Important endpoints include:
@@ -65,8 +74,8 @@ make test
 make check-all
 ```
 
-The historical `trix/` and `strix/` sources are retained as migration reference. They are not part
-of the Brix wheel and do not expose console commands; new product implementation belongs in `brix/`.
+Only `brix/` is packaged. Historical sources are excluded from the wheel and test discovery while
+the repository conversion is completed.
 
 ## Architecture
 

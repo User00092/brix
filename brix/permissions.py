@@ -15,11 +15,35 @@ class PermissionDenied(RuntimeError):
 
 
 ACTION_RISK = {
-    "snapshot": 0, "navigate": 0, "back": 0, "forward": 0, "reload": 0,
-    "tabs": 0, "switch_tab": 0, "scroll": 0, "screenshot": 0,
-    "assert_text": 0, "assert_url": 0, "detect_challenge": 0,
-    "click": 1, "fill": 1, "type": 1, "press": 1, "hover": 1, "select": 1,
-    "submit": 2, "send_message": 2, "account_change": 2, "purchase": 3, "delete": 3,
+    "snapshot": 0,
+    "navigate": 0,
+    "back": 0,
+    "forward": 0,
+    "reload": 0,
+    "tabs": 0,
+    "switch_tab": 0,
+    "scroll": 0,
+    "screenshot": 0,
+    "wait_for": 0,
+    "get_text": 0,
+    "storage": 0,
+    "assert_element": 0,
+    "assert_text": 0,
+    "assert_url": 0,
+    "detect_challenge": 0,
+    "click": 1,
+    "fill": 1,
+    "type": 1,
+    "press": 1,
+    "hover": 1,
+    "select": 1,
+    "close_tab": 1,
+    "upload": 2,
+    "submit": 2,
+    "send_message": 2,
+    "account_change": 2,
+    "purchase": 3,
+    "delete": 3,
 }
 
 
@@ -43,6 +67,10 @@ class PermissionPolicy:
         if decision == PermissionDecision.DENY:
             raise PermissionDenied(f"Risk level {risk} actions are denied")
         if decision == PermissionDecision.ASK:
-            approval = self.store.save_approval(Approval(task_id=task.id, action=action, risk_level=risk))
+            if self.store.consume_approval(task.id, action):
+                return risk
+            approval = self.store.save_approval(
+                Approval(task_id=task.id, action=action, risk_level=risk)
+            )
             raise PermissionRequired(approval)
         return risk

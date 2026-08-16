@@ -1,23 +1,23 @@
-# Contributing to Strix
+# Contributing to Brix
 
-Thank you for your interest in contributing to Strix! This guide will help you get started with development and contributions.
+Thank you for helping build reliable, user-controlled browser automation.
 
 ## 🚀 Development Setup
 
 ### Prerequisites
 
 - Python 3.12+
-- Latest Go 1.24.x patch (only for Bubble Tea TUI development and release artifacts)
-- Docker (running)
 - [uv](https://docs.astral.sh/uv/) (for dependency management)
 - Git
+- An authenticated Codex CLI
+- Playwright Chromium (`uv run playwright install chromium`)
 
 ### Local Development
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/usestrix/strix.git
-   cd strix
+   git clone <your-brix-fork>
+   cd brix
    ```
 
 2. **Install development dependencies**
@@ -29,28 +29,16 @@ Thank you for your interest in contributing to Strix! This guide will help you g
    uv run pre-commit install
    ```
 
-3. **Configure your LLM provider**
+3. **Configure local state**
    ```bash
-   export STRIX_LLM="openai/gpt-5.4"
-   export LLM_API_KEY="your-api-key"
+   export BRIX_DATA_DIR="$PWD/.brix"
+   export BRIX_API_TOKEN="development-token"
    ```
 
-4. **Run Strix in development mode**
+4. **Run Brix in development mode**
    ```bash
-   uv run strix --target https://example.com
+   uv run brix serve --reload
    ```
-
-## 📚 Contributing Skills
-
-Skills are specialized knowledge packages that enhance agent capabilities. See [strix/skills/README.md](strix/skills/README.md) for detailed guidelines.
-
-### Quick Guide
-
-1. **Choose the right category** (`/vulnerabilities`, `/frameworks`, `/technologies`, etc.)
-2. **Create a** `.md` file with your skill content
-3. **Include practical examples** - Working payloads, commands, or test cases
-4. **Provide validation methods** - How to confirm findings and avoid false positives
-5. **Submit via PR** with clear description
 
 ## 🔧 Contributing Code
 
@@ -84,8 +72,8 @@ Skills are specialized knowledge packages that enhance agent capabilities. See [
 When reporting bugs, please include:
 
 - Python version and OS
-- Strix version
-- LLMs being used
+- Brix version (`brix --version`)
+- Codex CLI version
 - Full error traceback
 - Steps to reproduce
 - Expected vs actual behavior
@@ -100,40 +88,14 @@ We welcome feature ideas! Please:
 - Consider implementation approach
 - Be open to discussion
 
-## 🖥️ Local viewer SPA
+## Scope and safety
 
-`strix view` serves a prebuilt web UI whose source lives in
-`strix/interface/viewer/frontend/` (a Vite + React project) and whose built output is
-committed to `strix/interface/viewer/static/` and shipped in the package. End users never
-run a JS build. If you change anything under `strix/interface/viewer/frontend/`, rebuild
-and commit the output:
-
-```bash
-make viewer   # or: cd strix/interface/viewer/frontend && npm ci && npm run build
-```
-
-Commit both the source change and the regenerated `strix/interface/viewer/static/`.
-
-## Package builds
-
-Editable installs do not need Go; they run the TUI from source (`go run`).
-
-Wheels always bundle the matching Go sidecar and are platform-specific:
-
-```bash
-make wheel
-```
-
-The build hook (`scripts/tui_sidecar_hook.py`) compiles the sidecar, embeds it as
-`strix/bin/strix-tui`, and assigns the current platform tag. It requires Go
-1.24.x or newer and fails rather than producing a wheel without the sidecar.
-`scripts/build.sh` and `strix.spec` are likewise strict for frozen PyInstaller
-releases.
+Browser tasks must respect configured permissions. Never add challenge bypasses, log credentials,
+or commit `.brix/`, browser profiles, cookies, downloads, screenshots, or task artifacts.
 
 ## 🤝 Community
 
-- **Discord**: [Join our community](https://discord.gg/strix-ai)
-- **Issues**: [GitHub Issues](https://github.com/usestrix/strix/issues)
+- Open an issue in the Brix repository with a minimal reproduction.
 
 ## ✨ Recognition
 
@@ -144,4 +106,4 @@ We value all contributions! Contributors will be:
 
 ---
 
-**Questions?** Reach out on [Discord](https://discord.gg/strix-ai) or create an issue. We're here to help!
+**Questions?** Open a discussion or issue in the Brix repository.

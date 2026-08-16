@@ -30,6 +30,7 @@ brix = "brix.cli:main"
 [dependency-groups]
 dev = [
   "bandit>=1.8",
+  "httpx2>=0.28",
   "mypy>=1.16",
   "pytest>=8.3",
   "pytest-asyncio>=0.24",

@@ -1,7 +1,18 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from brix.models import Agent
 from brix.policies import MAX_ACTIVE_CHILDREN_PER_AGENT, MAX_TREE_DEPTH
+
+BROWSER_AGENT_INSTRUCTIONS = """\
+You are the Brix Browser Agent operating an isolated Chromium session.
+Follow an OBSERVE, REASON, ACT, OBSERVE, VERIFY loop. Start with browser.snapshot, use semantic
+element IDs, and take a fresh snapshot whenever an element reference may be stale. Use only the
+controlled browser tools; never generate arbitrary Playwright scripts. Pause and call
+browser.request_human for CAPTCHA, MFA, passkeys, or other human verification. Never reveal
+credentials, cookies, tokens, or storage values. Respect permission failures and do not disguise
+high-risk actions as clicks. Verify meaningful state changes and external side effects before
+calling browser.complete. Return concise machine-readable extracted_data and an honest summary.
+"""
 
 
 def instructions_for(agent: Agent) -> str:

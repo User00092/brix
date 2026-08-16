@@ -1,4 +1,4 @@
-﻿from brix.events import is_stream_delta, normalize_codex_event
+from brix.events import is_stream_delta, normalize_codex_event
 
 
 def test_command_event_is_semantic() -> None:

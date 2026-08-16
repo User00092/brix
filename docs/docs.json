@@ -1,131 +1,17 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
-  "name": "Strix",
-  "colors": {
-    "primary": "#000000",
-    "light": "#ffffff",
-    "dark": "#000000"
-  },
-  "favicon": "/images/favicon-48.ico",
+  "name": "Brix",
+  "colors": {"primary": "#2563eb", "light": "#3b82f6", "dark": "#60a5fa"},
   "navigation": {
-    "tabs": [
-      {
-        "tab": "Documentation",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "index",
-              "quickstart"
-            ]
-          },
-          {
-            "group": "Usage",
-            "pages": [
-              "usage/cli",
-              "usage/scan-modes",
-              "usage/instructions"
-            ]
-          },
-          {
-            "group": "LLM Providers",
-            "pages": [
-              "llm-providers/overview",
-              "llm-providers/openai",
-              "llm-providers/anthropic",
-              "llm-providers/openrouter",
-              "llm-providers/vertex",
-              "llm-providers/bedrock",
-              "llm-providers/azure",
-              "llm-providers/novita",
-              "llm-providers/local"
-            ]
-          },
-          {
-            "group": "Integrations",
-            "pages": [
-              "integrations/github-actions",
-              "integrations/ci-cd",
-              "integrations/coding-agents"
-            ]
-          },
-          {
-            "group": "Tools",
-            "pages": [
-              "tools/overview",
-              "tools/browser",
-              "tools/proxy",
-              "tools/terminal",
-              "tools/sandbox"
-            ]
-          },
-          {
-            "group": "Advanced",
-            "pages": [
-              "advanced/configuration",
-              "advanced/skills",
-              "contributing"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Cloud",
-        "groups": [
-          {
-            "group": "Strix Cloud",
-            "pages": [
-              "cloud/overview"
-            ]
-          }
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "GitHub",
-          "href": "https://github.com/usestrix/strix",
-          "icon": "github"
-        },
-        {
-          "anchor": "Discord",
-          "href": "https://discord.gg/strix-ai",
-          "icon": "discord"
-        }
+    "tabs": [{
+      "tab": "Documentation",
+      "groups": [
+        {"group": "Getting started", "pages": ["index", "quickstart"]},
+        {"group": "Usage", "pages": ["usage/cli", "advanced/configuration"]}
       ]
-    }
+    }]
   },
-  "navbar": {
-    "links": [],
-    "primary": {
-      "type": "button",
-      "label": "Try Strix Cloud",
-      "href": "https://app.strix.ai"
-    }
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/strix_ai",
-      "github": "https://github.com/usestrix",
-      "discord": "https://discord.gg/strix-ai"
-    }
-  },
-  "fonts": {
-    "family": "Geist",
-    "heading": {
-      "family": "Geist"
-    },
-    "body": {
-      "family": "Geist"
-    }
-  },
-  "appearance": {
-    "default": "dark"
-  },
-  "description": "Open-source AI Hackers to secure your Apps",
-  "background": {
-    "decoration": "grid"
-  }
+  "description": "Codex-powered browser automation with live human takeover",
+  "appearance": {"default": "dark"}
 }

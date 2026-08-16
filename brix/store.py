@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import sqlite3
@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from brix.models import Agent, AgentReport, Event, BrixSession
+from brix.models import Agent, AgentReport, BrixSession, Event
 
 
 class Store:

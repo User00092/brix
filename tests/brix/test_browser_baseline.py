@@ -6,6 +6,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from brix.backend import BROWSER_TOOLS
+from brix.browser import BrowserError, BrowserWorker
 from brix.domain import (
     BrowserSession,
     BrowserTask,
@@ -14,7 +16,6 @@ from brix.domain import (
     FailureReason,
     PermissionDecision,
     TaskEvent,
-    TaskPermissions,
     TaskResult,
     TaskStatus,
 )
@@ -105,12 +106,59 @@ def test_permissions_auto_ask_deny_and_capability_flags(tmp_path: Path) -> None:
         policy.enforce(task, "submit")
     approval = requested.value.approval
     assert store.get_approval(approval.id) == approval
+    approval.status = "approved"
+    store.save_approval(approval)
+    assert policy.enforce(task, "submit") == 2
+    assert store.get_approval(approval.id).status == "consumed"  # type: ignore[union-attr]
+    with pytest.raises(PermissionRequired):
+        policy.enforce(task, "submit")
 
     with pytest.raises(PermissionDenied, match="Risk level 3"):
         policy.enforce(task, "unknown_action")
 
 
-def test_signed_remote_tokens_reject_wrong_session_tampering_and_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_controlled_browser_contract_covers_core_plan_actions() -> None:
+    names = {tool["name"] for tool in BROWSER_TOOLS[0]["tools"]}
+    assert {
+        "navigate",
+        "snapshot",
+        "get_text",
+        "click",
+        "fill",
+        "wait_for",
+        "tabs",
+        "close_tab",
+        "upload",
+        "storage",
+        "screenshot",
+        "assert_text",
+        "assert_url",
+        "assert_element",
+        "detect_challenge",
+        "request_human",
+        "complete",
+    } <= names
+
+
+@pytest.mark.asyncio
+async def test_browser_rejects_non_http_navigation_before_playwright_action(tmp_path: Path) -> None:
+    class FakePage:
+        async def goto(self, *_args: object, **_kwargs: object) -> None:
+            raise AssertionError("unsafe URL reached Playwright")
+
+    worker = BrowserWorker(
+        BrowserSession(task_id="task", profile="default"),
+        tmp_path / "profile",
+        tmp_path / "run",
+    )
+    worker._page = FakePage()  # type: ignore[attr-defined]
+    with pytest.raises(BrowserError, match=r"absolute HTTP\(S\) URL"):
+        await worker.execute("navigate", {"url": "file:///etc/passwd"})
+
+
+def test_signed_remote_tokens_reject_wrong_session_tampering_and_expiry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     clock = 1_700_000_000
     monkeypatch.setattr("brix.remote.time.time", lambda: clock)
     tokens = RemoteAccessTokens("x" * 32, ttl_seconds=30)
@@ -160,12 +208,18 @@ class FakeBackend:
         self.resumed.append((task.id, snapshot))
 
 
-def manager_with_active_task(root: Path) -> tuple[TaskManager, BrowserTask, FakeWorker, FakeBackend]:
+def manager_with_active_task(
+    root: Path,
+) -> tuple[TaskManager, BrowserTask, FakeWorker, FakeBackend]:
     store = make_store(root)
     profiles = ProfileManager(root / "profiles")
     manager = TaskManager(store, profiles, root)
-    task = store.save_task(BrowserTask(task="Handle challenge", profile="default", status=TaskStatus.RUNNING))
-    session = store.save_session(BrowserSession(task_id=task.id, profile=task.profile, current_url="https://example.test/"))
+    task = store.save_task(
+        BrowserTask(task="Handle challenge", profile="default", status=TaskStatus.RUNNING)
+    )
+    session = store.save_session(
+        BrowserSession(task_id=task.id, profile=task.profile, current_url="https://example.test/")
+    )
     worker = FakeWorker(session)
     backend = FakeBackend()
     manager.workers[task.id] = worker  # type: ignore[assignment]
@@ -206,10 +260,15 @@ async def test_manager_queue_create_and_complete_without_live_browser(tmp_path: 
     task = await manager.create(CreateTask(task="Capture the page", profile="default"))
     assert await manager.queue.get() == task.id
     manager.queue.task_done()
-    session = store.save_session(BrowserSession(task_id=task.id, profile=task.profile, current_url="https://example.test/done"))
+    session = store.save_session(
+        BrowserSession(
+            task_id=task.id, profile=task.profile, current_url="https://example.test/done"
+        )
+    )
     worker = FakeWorker(session)
     manager.workers[task.id] = worker  # type: ignore[assignment]
     task.status = TaskStatus.RUNNING
+    task.verification_passed = True
     store.save_task(task)
 
     completed = await manager.complete(task.id, TaskResult(success=True, summary="Captured"))
@@ -221,9 +280,59 @@ async def test_manager_queue_create_and_complete_without_live_browser(tmp_path: 
 
 
 @pytest.mark.asyncio
+async def test_cancel_is_terminal_idempotent_and_releases_browser(tmp_path: Path) -> None:
+    manager, task, worker, _backend = manager_with_active_task(tmp_path)
+    manager.backend = None
+
+    cancelled = await manager.cancel(task.id)
+    repeated = await manager.cancel(task.id)
+
+    assert cancelled.status == TaskStatus.CANCELLED
+    assert cancelled.result is not None and cancelled.result.error == FailureReason.USER_CANCELLED
+    assert repeated == cancelled
+    assert task.id not in manager.workers
+    assert worker.calls == []
+    assert [event.type for event in manager.store.events(task.id)] == ["task.cancelled"]
+
+
+@pytest.mark.asyncio
 async def test_execute_tool_blocks_non_running_tasks(tmp_path: Path) -> None:
     manager, task, _worker, _backend = manager_with_active_task(tmp_path)
     task.status = TaskStatus.PAUSED
     manager.store.save_task(task)
     with pytest.raises(RuntimeError, match="blocked while task is paused"):
         await manager.execute_tool(task.id, "snapshot", {})
+
+
+@pytest.mark.asyncio
+async def test_success_requires_fresh_passing_browser_verification(tmp_path: Path) -> None:
+    manager, task, worker, _backend = manager_with_active_task(tmp_path)
+
+    with pytest.raises(RuntimeError, match="passing browser assertion"):
+        await manager.execute_tool(
+            task.id, "complete", {"success": True, "summary": "Unverified claim"}
+        )
+
+    async def verified(action: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if action == "assert_url":
+            return {"passed": True, "actual": "https://example.test/"}
+        if action == "screenshot":
+            return {"path": arguments.get("name", "capture.png")}
+        return {"ok": True}
+
+    worker.execute = verified  # type: ignore[method-assign]
+    assert (await manager.execute_tool(task.id, "assert_url", {"value": "example"}))["passed"]
+    await manager.execute_tool(task.id, "complete", {"success": True, "summary": "Verified"})
+    restored = manager.store.get_task(task.id)
+    assert restored is not None and restored.status == TaskStatus.COMPLETED
+
+
+def test_profile_storage_uses_restrictive_permissions(tmp_path: Path) -> None:
+    manager = ProfileManager(tmp_path / "profiles")
+    manager.create("personal")
+    root = tmp_path / "profiles" / "personal"
+
+    assert (manager.root.stat().st_mode & 0o777) == 0o700
+    assert (root.stat().st_mode & 0o777) == 0o700
+    assert ((root / "user-data").stat().st_mode & 0o777) == 0o700
+    assert ((root / "profile.json").stat().st_mode & 0o777) == 0o600
